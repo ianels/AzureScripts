@@ -1,0 +1,174 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Username for the Virtual Machine."
+      }
+    },
+
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the Virtual Machine."
+      }
+    },
+
+    "windowsOSSku": {
+      "type": "string",
+      "defaultValue": "2012-R2-Datacenter",
+      "allowedValues": [
+        "2008-R2-SP1",
+        "2012-Datacenter",
+        "2012-R2-Datacenter"
+      ],
+      "metadata": {
+        "description": "The Windows version for the VM. This will pick a fully patched image of this given Windows version. Allowed values: 2008-R2-SP1, 2012-Datacenter, 2012-R2-Datacenter."
+      }
+    },
+
+    "vmLocation": {
+      "type": "string",
+      "allowedValues": [
+        "East US 2",
+        "Central US"
+      ],
+      "metadata": {
+        "description": "The location the VMs will be created in"
+      }
+    },
+
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The naming convention of the VMs - aka VM prefix"
+      }
+    },
+
+    "vmSize": {
+      "type": "string",
+      "metadata": {
+        "description": "The size of the VMs to be provisioned"
+      }
+    },
+
+    "StorageContainerName": {
+      "type": "string",
+      "metadata": {
+        "description": "The folder where the vhd files and config files are stored"
+      }
+    },
+
+    "StorageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "The folder where the vhd files and config files are stored"
+      }
+    },
+
+    "VirtualNetworkID": {
+      "type": "string",
+      "metadata": {
+        "description": "The folder where the vhd files and config files are stored"
+      }
+    },
+
+    "SubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The folder where the vhd files and config files are stored"
+      }
+    }
+
+
+
+
+  },
+  "variables": {
+
+    "imagePublisher": "MicrosoftWindowsServer",
+    "imageOffer": "WindowsServer",
+    "OSDiskName": "[concat(parameters('vmName'),'OSDisk')]",
+    "nicName": "[concat(parameters('vmName'),'Nic')]",
+
+    "subnetRef": "[concat(parameters('virtualNetworkID'),'/subnets/',parameters('subnetName'))]",
+    "apiVersion": "2015-06-15"
+  },
+  "resources": [
+
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('nicName')]",
+      "location": "[parameters('vmlocation')]",
+
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('vmName')]",
+      "location": "[parameters('vmlocation')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/',variables('nicName'))]"
+      ],
+     
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[parameters('windowsOSSku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "osdisk",
+            "vhd": {
+              "uri": "[concat('http://',parameters('storageAccountName'),'.blob.core.windows.net/',parameters('StorageContainerName'),'/',variables('OSDiskName'),'.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+
+          },
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "false"
+          }
+        }
+      }
+    }
+  ]
+}
+
+
